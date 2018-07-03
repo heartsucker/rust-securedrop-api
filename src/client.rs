@@ -1,3 +1,5 @@
+//! API client.
+
 use reqwest::header::{Accept, Authorization as AuthHeader, ContentType, Headers};
 use reqwest::{self, Client as HttpClient, Response as HttpResponse, Url};
 use serde::de::DeserializeOwned;
@@ -8,20 +10,28 @@ use auth::{Authorization, Credentials};
 use data::{Reply, Response, Source, Sources, Submission, Submissions, User};
 use error::{Error, ErrorKind};
 
+/// A client used to interact with the SecureDrop API. This client handles authentication and
+/// retries.
 pub struct Client {
     url_base: Url,
     http: HttpClient,
-    credentials: Credentials,
-    auth: Option<Authorization>,
+    auth: Authorization,
 }
 
 impl Client {
-    pub fn new(url_base: Url, credentials: Credentials) -> Result<Self> {
+    /// Construct a new `Client` from a URL base (e.g., `http://localhost:8081` or
+    /// `https://someonionservice.onion/some/path/`) and a set of credentialized used to acquire
+    /// and initial auth token.
+    ///
+    /// Creation of a client will return an `Err` if it fails to authenticate.
+    pub fn new<C>(url_base: Url, credentials: C) -> Result<Self>
+    where
+        C: Into<Credentials>,
+    {
         let mut client = Self {
             url_base: url_base,
             http: HttpClient::new(),
-            credentials: credentials,
-            auth: None,
+            auth: Authorization::Credentials(credentials.into()),
         };
         client.authorize()?;
         Ok(client)
@@ -43,28 +53,33 @@ impl Client {
 
     fn auth_header(&self, headers: &mut Headers) {
         match self.auth {
-            Some(Authorization::Token(ref token)) => {
-                headers.set(AuthHeader(format!("Token {}", token)))
-            }
-            None => (),
+            Authorization::Token(ref token) => headers.set(AuthHeader(format!("Token {}", token))),
+            Authorization::Credentials(_) => (),
         }
     }
 
-    pub fn reauthorize(&mut self, credentials: Credentials) -> Result<()> {
-        self.credentials = credentials;
-        self.auth = None;
+    /// Reauthorize the client using a new set of credentials. This may need to be done if a client
+    /// suffers network errors and loses authentication. This will return an `Err` if if fails to
+    /// authenticate.
+    pub fn reauthorize<C>(&mut self, credentials: C) -> Result<()>
+    where
+        C: Into<Credentials>,
+    {
+        self.auth = Authorization::Credentials(credentials.into());
         self.authorize()
     }
 
     fn authorize(&mut self) -> Result<()> {
-        let resp = self
-            .http
-            .post(self.url("token"))
-            .headers(self.headers())
-            .json(&self.credentials)
-            .send();
+        let url = self.url("token");
+        let headers = self.headers();
+        let resp = match self.auth {
+            Authorization::Credentials(ref creds) => {
+                self.http.post(url).headers(headers).json(&creds).send()
+            }
+            Authorization::Token(_) => self.http.post(url).headers(headers).send(),
+        };
         let auth = Self::parse_json(resp)?;
-        self.auth = Some(Authorization::Token(auth));
+        self.auth = Authorization::Token(auth);
         Ok(())
     }
 
@@ -114,6 +129,9 @@ impl Client {
         }
     }
 
+    /// Retrieve all sources the logged in user is permitted to view.
+    ///
+    /// Corresponds to `GET /api/v1/sources`.
     pub fn sources(&self) -> Result<Sources> {
         let resp = self
             .http
@@ -123,6 +141,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Retrieve one source by ID.
+    ///
+    /// Corresponds to `GET /api/v1/source/<str:filesystem_id>`.
     pub fn source(&self, filesystem_id: &str) -> Result<Source> {
         let resp = self
             .http
@@ -132,6 +153,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Retrieve all submissions for a given source.
+    ///
+    /// Corresponds to `GET /api/v1/source/<str:filesystem_id>/submissions`.
     pub fn source_submissions(&self, filesystem_id: &str) -> Result<Submissions> {
         let resp = self
             .http
@@ -141,6 +165,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Retrieve one submission from a given source.
+    ///
+    /// Corresponds to `GET /api/v1/soruces/<str:filesystem_id>/submissions/<int:submission_id>`.
     pub fn source_submission(&self, filesystem_id: &str, submission_id: u32) -> Result<Submission> {
         let resp = self
             .http
@@ -153,7 +180,10 @@ impl Client {
         Self::parse_json(resp)
     }
 
-    pub fn reply_to_source(&self, filesystem_id: &str, reply: Reply) -> Result<Response> {
+    /// Send a pre-encrypted reply to the given source.
+    ///
+    /// Corresponds to `POST /api/v1/sources/<str:filesystem_id>/reply`.
+    pub fn reply_to_source(&self, filesystem_id: &str, reply: &Reply) -> Result<Response> {
         let resp = self
             .http
             .post(self.url(&format!("sources/{}/reply", filesystem_id)))
@@ -163,6 +193,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Delete one submission for a given source.
+    ///
+    /// Corresponds to `DELETE /api/v1/sources/<str:filesystem_id>/submissions/<int:submission_id>`.
     pub fn delete_source_submission(
         &self,
         filesystem_id: &str,
@@ -179,6 +212,10 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Download one submission to a sink (`Write`).
+    ///
+    /// Corresponds to `GET
+    /// /api/v1/sources/<str:filesystem_id>/submissions/<int:submission_id>/download`.
     pub fn download_submission<W>(
         &self,
         filesystem_id: &str,
@@ -206,6 +243,9 @@ impl Client {
         })
     }
 
+    /// Delete a source and all submissions.
+    ///
+    /// Corresponds to `DELETE /api/v1/sources/<str:filesystem_id>/submissions>`.
     pub fn delete_submissions(&self, filesystem_id: &str) -> Result<Response> {
         let resp = self
             .http
@@ -215,6 +255,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Add a star to a source.
+    ///
+    /// Corresponds to `POST /api/v1/soruces/<str:filesystem_id>/star`.
     pub fn star_source(&self, filesystem_id: &str) -> Result<Response> {
         let resp = self
             .http
@@ -224,6 +267,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Remove a star from a source.
+    ///
+    /// Corresponds to `DELETE /api/v1/soruces/<str:filesystem_id>/star`.
     pub fn unstar_source(&self, filesystem_id: &str) -> Result<Response> {
         let resp = self
             .http
@@ -233,6 +279,9 @@ impl Client {
         Self::parse_json(resp)
     }
 
+    /// Retrieve information about the logged in user.
+    ///
+    /// Corresponds to `GET /api/v1/user`.
     pub fn user(&self) -> Result<User> {
         let resp = self
             .http
