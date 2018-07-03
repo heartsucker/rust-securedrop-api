@@ -17,7 +17,10 @@
 //!         "123123".into(),
 //!     );
 //!
-//!     let client = Client::new("http://localhost:8081".parse().unwrap(), creds)?;
+//!     let client = Client::new(
+//!         "http://localhost:8081".parse().unwrap(),
+//!         creds,
+//!         Some("MyApp/0.1.0".to_string()))?;
 //!
 //!     // Initialize client / authorize user
 //!     let user = client.user()?;

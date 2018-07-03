@@ -1,6 +1,6 @@
 //! API client.
 
-use reqwest::header::{Accept, Authorization as AuthHeader, ContentType, Headers};
+use reqwest::header::{Accept, Authorization as AuthHeader, ContentType, Headers, UserAgent};
 use reqwest::{self, Client as HttpClient, Response as HttpResponse, Url};
 use serde::de::DeserializeOwned;
 use std::io::Write;
@@ -15,6 +15,7 @@ use error::{Error, ErrorKind};
 pub struct Client {
     url_base: Url,
     http: HttpClient,
+    user_agent: String,
     auth: Authorization,
 }
 
@@ -24,13 +25,18 @@ impl Client {
     /// and initial auth token.
     ///
     /// Creation of a client will return an `Err` if it fails to authenticate.
-    pub fn new<C>(url_base: Url, credentials: C) -> Result<Self>
+    pub fn new<C>(url_base: Url, credentials: C, user_agent: Option<String>) -> Result<Self>
     where
         C: Into<Credentials>,
     {
+        let user_agent = match user_agent {
+            Some(ua) => format!("{} (rust-securedrop-api/{})", ua, env!("CARGO_PKG_VERSION")),
+            None => format!("rust-securedrop-api/{}", env!("CARGO_PKG_VERSION")),
+        };
         let mut client = Self {
             url_base: url_base,
             http: HttpClient::new(),
+            user_agent: user_agent,
             auth: Authorization::Credentials(credentials.into()),
         };
         client.authorize()?;
@@ -47,6 +53,7 @@ impl Client {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(Accept::json());
+        headers.set(UserAgent::new(self.user_agent.clone()));
         self.auth_header(&mut headers);
         headers
     }
