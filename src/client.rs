@@ -4,6 +4,7 @@ use reqwest::header::{Accept, Authorization as AuthHeader, ContentType, Headers,
 use reqwest::{self, Client as HttpClient, Response as HttpResponse, Url};
 use serde::de::DeserializeOwned;
 use std::io::Write;
+use uuid::Uuid;
 
 use super::Result;
 use auth::{Authorization, Credentials};
@@ -150,11 +151,11 @@ impl Client {
 
     /// Retrieve one source by ID.
     ///
-    /// Corresponds to `GET /api/v1/source/<str:filesystem_id>`.
-    pub fn source(&self, filesystem_id: &str) -> Result<Source> {
+    /// Corresponds to `GET /api/v1/source/<uuid:uuid:>`.
+    pub fn source(&self, uuid: &Uuid) -> Result<Source> {
         let resp = self
             .http
-            .get(self.url(&format!("sources/{}", filesystem_id)))
+            .get(self.url(&format!("sources/{}", uuid)))
             .headers(self.headers())
             .send();
         Self::parse_json(resp)
@@ -162,11 +163,11 @@ impl Client {
 
     /// Retrieve all submissions for a given source.
     ///
-    /// Corresponds to `GET /api/v1/source/<str:filesystem_id>/submissions`.
-    pub fn source_submissions(&self, filesystem_id: &str) -> Result<Submissions> {
+    /// Corresponds to `GET /api/v1/source/<uuid:uuid:>/submissions`.
+    pub fn source_submissions(&self, uuid: &Uuid) -> Result<Submissions> {
         let resp = self
             .http
-            .get(self.url(&format!("sources/{}/submissions", filesystem_id)))
+            .get(self.url(&format!("sources/{}/submissions", uuid)))
             .headers(self.headers())
             .send();
         Self::parse_json(resp)
@@ -174,13 +175,13 @@ impl Client {
 
     /// Retrieve one submission from a given source.
     ///
-    /// Corresponds to `GET /api/v1/soruces/<str:filesystem_id>/submissions/<int:submission_id>`.
-    pub fn source_submission(&self, filesystem_id: &str, submission_id: u32) -> Result<Submission> {
+    /// Corresponds to `GET /api/v1/soruces/<uuid:uuid:>/submissions/<int:submission_id>`.
+    pub fn source_submission(&self, uuid: &Uuid, submission_id: u32) -> Result<Submission> {
         let resp = self
             .http
             .get(self.url(&format!(
                 "sources/{}/submissions/{}",
-                filesystem_id, submission_id
+                uuid, submission_id
             )))
             .headers(self.headers())
             .send();
@@ -189,11 +190,11 @@ impl Client {
 
     /// Send a pre-encrypted reply to the given source.
     ///
-    /// Corresponds to `POST /api/v1/sources/<str:filesystem_id>/reply`.
-    pub fn reply_to_source(&self, filesystem_id: &str, reply: &Reply) -> Result<Response> {
+    /// Corresponds to `POST /api/v1/sources/<uuid:uuid:>/reply`.
+    pub fn reply_to_source(&self, uuid: &Uuid, reply: &Reply) -> Result<Response> {
         let resp = self
             .http
-            .post(self.url(&format!("sources/{}/reply", filesystem_id)))
+            .post(self.url(&format!("sources/{}/reply", uuid)))
             .headers(self.headers())
             .json(&reply)
             .send();
@@ -202,17 +203,17 @@ impl Client {
 
     /// Delete one submission for a given source.
     ///
-    /// Corresponds to `DELETE /api/v1/sources/<str:filesystem_id>/submissions/<int:submission_id>`.
+    /// Corresponds to `DELETE /api/v1/sources/<uuid:uuid:>/submissions/<int:submission_id>`.
     pub fn delete_source_submission(
         &self,
-        filesystem_id: &str,
+        uuid: &Uuid,
         submission_id: u32,
     ) -> Result<Submission> {
         let resp = self
             .http
             .delete(self.url(&format!(
                 "sources/{}/submissions/{}",
-                filesystem_id, submission_id
+                uuid, submission_id
             )))
             .headers(self.headers())
             .send();
@@ -222,10 +223,10 @@ impl Client {
     /// Download one submission to a sink (`Write`).
     ///
     /// Corresponds to `GET
-    /// /api/v1/sources/<str:filesystem_id>/submissions/<int:submission_id>/download`.
+    /// /api/v1/sources/<uuid:uuid:>/submissions/<int:submission_id>/download`.
     pub fn download_submission<W>(
         &self,
-        filesystem_id: &str,
+        uuid: &Uuid,
         submission_id: u32,
         mut write: W,
     ) -> Result<()>
@@ -239,7 +240,7 @@ impl Client {
             .http
             .get(self.url(&format!(
                 "sources/{}/submissions/{}/download",
-                filesystem_id, submission_id
+                uuid, submission_id
             )))
             .headers(headers)
             .send();
@@ -252,11 +253,11 @@ impl Client {
 
     /// Delete a source and all submissions.
     ///
-    /// Corresponds to `DELETE /api/v1/sources/<str:filesystem_id>/submissions>`.
-    pub fn delete_submissions(&self, filesystem_id: &str) -> Result<Response> {
+    /// Corresponds to `DELETE /api/v1/sources/<uuid:uuid:>/submissions>`.
+    pub fn delete_submissions(&self, uuid: &Uuid) -> Result<Response> {
         let resp = self
             .http
-            .delete(self.url(&format!("sources/{}/submissions", filesystem_id,)))
+            .delete(self.url(&format!("sources/{}/submissions", uuid,)))
             .headers(self.headers())
             .send();
         Self::parse_json(resp)
@@ -264,11 +265,11 @@ impl Client {
 
     /// Add a star to a source.
     ///
-    /// Corresponds to `POST /api/v1/soruces/<str:filesystem_id>/star`.
-    pub fn star_source(&self, filesystem_id: &str) -> Result<Response> {
+    /// Corresponds to `POST /api/v1/soruces/<uuid:uuid:>/star`.
+    pub fn star_source(&self, uuid: &Uuid) -> Result<Response> {
         let resp = self
             .http
-            .post(self.url(&format!("sources/{}/star", filesystem_id,)))
+            .post(self.url(&format!("sources/{}/star", uuid,)))
             .headers(self.headers())
             .send();
         Self::parse_json(resp)
@@ -276,11 +277,11 @@ impl Client {
 
     /// Remove a star from a source.
     ///
-    /// Corresponds to `DELETE /api/v1/soruces/<str:filesystem_id>/star`.
-    pub fn unstar_source(&self, filesystem_id: &str) -> Result<Response> {
+    /// Corresponds to `DELETE /api/v1/soruces/<uuid:uuid:>/star`.
+    pub fn unstar_source(&self, uuid: &Uuid) -> Result<Response> {
         let resp = self
             .http
-            .delete(self.url(&format!("sources/{}/star", filesystem_id,)))
+            .delete(self.url(&format!("sources/{}/star", uuid,)))
             .headers(self.headers())
             .send();
         Self::parse_json(resp)

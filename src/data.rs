@@ -1,6 +1,7 @@
 //! API request / response data types.
 
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 use super::Result;
 use error::ErrorKind;
@@ -33,7 +34,7 @@ impl Sources {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Source {
-    filesystem_id: String,
+    uuid: Uuid,
     #[serde(rename = "flagged")]
     is_flagged: bool,
     last_updated: DateTime<Utc>,
@@ -42,13 +43,12 @@ pub struct Source {
     number_of_documents: u32,
     number_of_messages: u32,
     public_key: String, // TODO better type
-    source_id: u32,
 }
 
 impl Source {
     /// A unique identifier of the source.
-    pub fn filesystem_id(&self) -> &str {
-        &self.filesystem_id
+    pub fn uuid(&self) -> &Uuid {
+        &self.uuid
     }
 
     /// Boolean field indicating that the source has been flagged.
@@ -87,14 +87,9 @@ impl Source {
     pub fn public_key(&self) -> &str {
         &self.public_key
     }
-
-    /// A source's unique numeric identifier.
-    pub fn source_id(&self) -> u32 {
-        self.source_id
-    }
 }
 
-/// Response for the endpoint `GET /api/v1/source/<str:filesystem_id>/submissions`.
+/// Response for the endpoint `GET /api/v1/source/<uuid:uuid:>/submissions`.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Submissions {
     submissions: Vec<Submission>,

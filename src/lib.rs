@@ -29,13 +29,13 @@
 //!     let sources = client.sources()?;
 //!
 //!     // Get one source
-//!     let source = client.source(sources.sources()[0].filesystem_id())?;
+//!     let source = client.source(sources.sources()[0].uuid())?;
 //!
 //!     // List submissions and download
-//!     let submissions = client.source_submissions(source.filesystem_id())?;
+//!     let submissions = client.source_submissions(source.uuid())?;
 //!     let mut buf = Vec::new();
 //!     client.download_submission(
-//!         source.filesystem_id(),
+//!         source.uuid(),
 //!         submissions.submissions()[0].submission_id(),
 //!         &mut buf,
 //!     )?;
@@ -44,7 +44,7 @@
 //!     let reply_str =
 //!         "-----BEGIN PGP MESSAGE-----\nshould be encrypted :(\n-----END PGP MESSAGE-----";
 //!     let reply = Reply::new(reply_str)?;
-//!     client.reply_to_source(source.filesystem_id(), &reply)?;
+//!     client.reply_to_source(source.uuid(), &reply)?;
 //!     Ok(())
 //! }
 //! ```
@@ -57,6 +57,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json as json;
+extern crate uuid;
 
 pub mod auth;
 pub mod client;

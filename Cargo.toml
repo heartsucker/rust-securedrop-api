@@ -10,9 +10,10 @@ name = "securedrop_api"
 path = "./src/lib.rs"
 
 [dependencies]
-chrono = { version = "0.4", features = [ "serde" ] }
+chrono = {version = "0.4", features = ["serde"]}
 failure = "0.1"
 reqwest = "0.8"
 serde = "1"
 serde_derive = "1"
 serde_json = "1"
+uuid = {version = "0.6", features = ["serde"]}
